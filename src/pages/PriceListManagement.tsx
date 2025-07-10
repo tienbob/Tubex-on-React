@@ -17,13 +17,11 @@ const PriceListManagement: React.FC = () => {
   const navigate = useNavigate();
   const { canPerform } = useAccessControl();
   useEffect(() => {
-    console.log('PriceListManagement: Loading price lists...');
     setLoading(true);
     setError(null);
     
     getPriceLists()
       .then((res) => {
-        console.log('PriceListManagement: Successfully loaded price lists', res);
         setPriceLists(res);
       })
       .catch((err) => {
@@ -40,7 +38,6 @@ const PriceListManagement: React.FC = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
   const handleCreate = async () => {
-    console.log('PriceListManagement: Creating price list...', form);
     setFormError(null);
     
     if (!form.name || !form.type) {
@@ -50,13 +47,11 @@ const PriceListManagement: React.FC = () => {
     
     try {
       const result = await createPriceList({ ...form, items: [] }); // Items can be added in a more advanced form
-      console.log('PriceListManagement: Successfully created price list', result);
       setOpen(false);
       
       // Refresh the list
       setLoading(true);
       const updatedLists = await getPriceLists();
-      console.log('PriceListManagement: Successfully refreshed price lists', updatedLists);
       setPriceLists(updatedLists);
     } catch (err: any) {
       console.error('PriceListManagement: Failed to create price list', err);

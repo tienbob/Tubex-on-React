@@ -87,7 +87,6 @@ export const dashboardService = {
       // Extract data from the nested response structure {status: 'success', data: {...}}
       const responseData = response.data?.data || response.data;
       
-      console.log('Dashboard API response:', responseData);
       
       // Format the data to match what the dashboard expects
       const summary: ProductSummary = {
@@ -102,7 +101,6 @@ export const dashboardService = {
         categoryCount: responseData.category_counts || {}
       };
       
-      console.log('Mapped product summary:', summary);
       
       return summary;
     } catch (error) {
@@ -127,8 +125,7 @@ export const dashboardService = {
       // Extract data from the nested response structure {status: 'success', data: {...}}
       const responseData = response.data?.data || response.data;
       
-      console.log('Raw inventory dashboard response:', response.data);
-      console.log('Extracted inventory data for mapping:', responseData);
+
       
       // Format the data to match what the dashboard expects
       const summary: InventorySummary = {

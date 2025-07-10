@@ -46,7 +46,6 @@ interface Warehouse {
 
 interface InventoryFormData {
   product_id: string;
-  warehouse_id: string;
   quantity: number;
   unit: string;
   min_threshold?: number;
@@ -54,6 +53,11 @@ interface InventoryFormData {
   reorder_point?: number;
   reorder_quantity?: number;
   auto_reorder: boolean;
+  // For warehouse assignments
+  warehouse_assignments: Array<{
+    warehouse_id: string;
+    quantity: number;
+  }>;
 }
 
 const InventoryForm: React.FC<InventoryFormProps> = ({ 
@@ -73,7 +77,6 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
   
   const [formData, setFormData] = useState<InventoryFormData>({
     product_id: '',
-    warehouse_id: '',
     quantity: 0,
     unit: '',
     min_threshold: undefined,
@@ -81,6 +84,7 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
     reorder_point: undefined,
     reorder_quantity: undefined,
     auto_reorder: false,
+    warehouse_assignments: [{ warehouse_id: '', quantity: 0 }],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -113,9 +117,15 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
   const fetchInventoryDetails = async () => {
     try {
       const inventory = await inventoryService.getInventoryById(inventoryId!);
+      
+      // Convert warehouse_inventory_items to warehouse_assignments
+      const warehouse_assignments = inventory.warehouse_inventory_items?.map(item => ({
+        warehouse_id: item.warehouse_id,
+        quantity: item.quantity
+      })) || [{ warehouse_id: '', quantity: 0 }];
+      
       setFormData({
         product_id: inventory.product_id,
-        warehouse_id: inventory.warehouse_id,
         quantity: inventory.quantity,
         unit: inventory.unit || '',
         min_threshold: inventory.min_threshold,
@@ -123,6 +133,7 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
         reorder_point: inventory.reorder_point,
         reorder_quantity: inventory.reorder_quantity,
         auto_reorder: inventory.auto_reorder || false,
+        warehouse_assignments,
       });
     } catch (err: any) {
       setError('Failed to load inventory details.');
@@ -160,6 +171,30 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
     }
   };
 
+  // Helper functions for warehouse assignments
+  const addWarehouseAssignment = () => {
+    setFormData(prev => ({
+      ...prev,
+      warehouse_assignments: [...prev.warehouse_assignments, { warehouse_id: '', quantity: 0 }]
+    }));
+  };
+
+  const removeWarehouseAssignment = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      warehouse_assignments: prev.warehouse_assignments.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateWarehouseAssignment = (index: number, field: 'warehouse_id' | 'quantity', value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      warehouse_assignments: prev.warehouse_assignments.map((assignment, i) => 
+        i === index ? { ...assignment, [field]: value } : assignment
+      )
+    }));
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -167,8 +202,10 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
       newErrors.product_id = 'Product is required';
     }
     
-    if (!formData.warehouse_id) {
-      newErrors.warehouse_id = 'Warehouse is required';
+    // Validate warehouse assignments
+    if (formData.warehouse_assignments.length === 0 || 
+        !formData.warehouse_assignments.some(wa => wa.warehouse_id && wa.quantity > 0)) {
+      newErrors.warehouse_assignments = 'At least one warehouse assignment is required';
     }
     
     if (formData.quantity < 0) {
@@ -195,10 +232,73 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
     setLoading(true);
     setError(null);
     try {
+      // Separate inventory data from warehouse assignments
+      const inventoryData = {
+        product_id: formData.product_id,
+        company_id: companyId,
+        quantity: formData.quantity,
+        unit: formData.unit,
+        min_threshold: formData.min_threshold,
+        max_threshold: formData.max_threshold,
+        reorder_point: formData.reorder_point,
+        reorder_quantity: formData.reorder_quantity,
+        auto_reorder: formData.auto_reorder
+      };
+
+      const warehouseAssignments = formData.warehouse_assignments.filter(wa => wa.warehouse_id && wa.quantity > 0);
+
       if (inventoryId) {
-        await inventoryService.updateInventory(inventoryId, formData);
+        // For updates, first update the inventory data
+        await inventoryService.updateInventory(inventoryId, inventoryData);
+        
+        // Then sync warehouse assignments
+        const currentInventory = await inventoryService.getInventoryById(inventoryId);
+        const currentAssignments = currentInventory.warehouse_inventory_items || [];
+        
+        // Remove old assignments that are no longer in the form
+        for (const currentAssignment of currentAssignments) {
+          const stillExists = warehouseAssignments.find(
+            wa => wa.warehouse_id === currentAssignment.warehouse_id
+          );
+          if (!stillExists) {
+            await inventoryService.removeInventoryFromWarehouse(currentAssignment.id);
+          }
+        }
+        
+        // Update or create new assignments
+        for (const assignment of warehouseAssignments) {
+          const existingAssignment = currentAssignments.find(
+            ca => ca.warehouse_id === assignment.warehouse_id
+          );
+          
+          if (existingAssignment) {
+            // Update existing assignment if quantity changed
+            if (existingAssignment.quantity !== assignment.quantity) {
+              await inventoryService.updateWarehouseInventory(
+                existingAssignment.id, 
+                assignment.quantity
+              );
+            }
+          } else {
+            // Create new assignment
+            await inventoryService.addInventoryToWarehouse(
+              inventoryId, 
+              assignment.warehouse_id, 
+              assignment.quantity
+            );
+          }
+        }
       } else {
-        await inventoryService.createInventory({ ...formData, company_id: companyId });
+        // For creation, include warehouse assignments
+        const createData = {
+          ...inventoryData,
+          warehouse_inventory_items: warehouseAssignments
+        };
+        
+        console.log('Creating inventory with data:', createData);
+        console.log('Warehouse assignments:', warehouseAssignments);
+        
+        await inventoryService.createInventory(createData);
       }
       
       onSave();
@@ -236,7 +336,8 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
       )}<Box component="form" noValidate>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Box sx={{ flex: 1, minWidth: 250 }}>              <FormControl fullWidth error={!!errors.product_id}>
+            <Box sx={{ flex: 1, minWidth: 250 }}>              
+              <FormControl fullWidth error={!!errors.product_id}>
                 <InputLabel>Product</InputLabel>
                 <Select
                   value={formData.product_id}
@@ -264,29 +365,63 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
             </Box>
 
             <Box sx={{ flex: 1, minWidth: 250 }}>
-              <FormControl fullWidth error={!!errors.warehouse_id}>
-                <InputLabel>Warehouse</InputLabel>
-                <Select
-                  value={formData.warehouse_id}
-                  onChange={(e: SelectChangeEvent<string>) => {
-                    setFormData(prev => ({ ...prev, warehouse_id: e.target.value }));
-                    if (errors.warehouse_id) {
-                      setErrors(prev => ({ ...prev, warehouse_id: '' }));
-                    }
-                  }}                  disabled={!!inventoryId} // Can't change warehouse for existing inventory
-                >
-                  {Array.isArray(warehouses) && warehouses.map((warehouse) => (
-                    <MenuItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {errors.warehouse_id && (
-                  <Typography variant="caption" color="error">
-                    {errors.warehouse_id}
-                  </Typography>
-                )}
-              </FormControl>
+              <Typography variant="h6" gutterBottom>
+                Warehouse Assignments
+              </Typography>
+              {formData.warehouse_assignments.map((assignment, index) => (
+                <Box key={index} sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
+                  <FormControl sx={{ flex: 1 }} error={!!errors.warehouse_assignments}>
+                    <InputLabel>Warehouse</InputLabel>
+                    <Select
+                      value={assignment.warehouse_id}
+                      onChange={(e: SelectChangeEvent<string>) => {
+                        updateWarehouseAssignment(index, 'warehouse_id', e.target.value);
+                        if (errors.warehouse_assignments) {
+                          setErrors(prev => ({ ...prev, warehouse_assignments: '' }));
+                        }
+                      }}
+                      disabled={!!inventoryId} // Can't change warehouse for existing inventory
+                    >
+                      {Array.isArray(warehouses) && warehouses.map((warehouse) => (
+                        <MenuItem key={warehouse.id} value={warehouse.id}>
+                          {warehouse.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    sx={{ width: 120 }}
+                    label="Quantity"
+                    type="number"
+                    value={assignment.quantity || ''}
+                    onChange={(e) => updateWarehouseAssignment(index, 'quantity', Number(e.target.value))}
+                    inputProps={{ min: 0, step: 0.01 }}
+                  />
+                  {formData.warehouse_assignments.length > 1 && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      onClick={() => removeWarehouseAssignment(index)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </Box>
+              ))}
+              {errors.warehouse_assignments && (
+                <Typography variant="caption" color="error">
+                  {errors.warehouse_assignments}
+                </Typography>
+              )}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={addWarehouseAssignment}
+                sx={{ mt: 1 }}
+              >
+                Add Warehouse
+              </Button>
             </Box>
           </Box>
 
@@ -385,6 +520,67 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
             <Typography variant="caption" color="textSecondary" display="block">
               Automatically create reorder when quantity falls below reorder point
             </Typography>
+          </Box>
+
+          {/* Warehouse Assignments Section */}
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h6" gutterBottom>
+              Warehouse Assignments
+            </Typography>
+            {formData.warehouse_assignments.map((assignment, index) => (
+              <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                <FormControl fullWidth error={!!errors.warehouse_id}>
+                  <InputLabel>Warehouse</InputLabel>
+                  <Select
+                    value={assignment.warehouse_id}
+                    onChange={(e) => updateWarehouseAssignment(index, 'warehouse_id', e.target.value)}
+                  >
+                    {warehouses.length > 0 ? (
+                      warehouses.map((warehouse) => (
+                        <MenuItem key={warehouse.id} value={warehouse.id}>
+                          {warehouse.name}
+                        </MenuItem>
+                      ))
+                    ) : (
+                      <MenuItem disabled value="">
+                        No warehouses available
+                      </MenuItem>
+                    )}
+                  </Select>
+                  {errors.warehouse_id && (
+                    <Typography variant="caption" color="error">
+                      {errors.warehouse_id}
+                    </Typography>
+                  )}
+                </FormControl>
+                <TextField
+                  label="Quantity"
+                  type="number"
+                  value={assignment.quantity}
+                  onChange={(e) => updateWarehouseAssignment(index, 'quantity', Number(e.target.value))}
+                  error={!!errors.quantity}
+                  helperText={errors.quantity}
+                  inputProps={{ min: 0, step: 0.01 }}
+                />
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={() => removeWarehouseAssignment(index)}
+                  disabled={loading}
+                  sx={{ alignSelf: 'center' }}
+                >
+                  Remove
+                </Button>
+              </Box>
+            ))}
+            <Button
+              variant="outlined"
+              onClick={addWarehouseAssignment}
+              disabled={loading}
+              sx={{ mt: 1 }}
+            >
+              Add Warehouse Assignment
+            </Button>
           </Box>
         </Box>        <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
           {onCancel && (

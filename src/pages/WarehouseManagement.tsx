@@ -25,13 +25,13 @@ import { inventoryService, warehouseService } from '../services/api';
 import { Warehouse, ApiError } from '../services/api/warehouseService';
 import { useAuth } from '../components/auth/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
-import { Inventory } from '../services/api/inventoryService';
+import { WarehouseInventoryItem } from '../services/api/shared-types';
 
 
 const WarehouseManagement: React.FC = () => {
   const { canPerform } = useAccessControl();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [inventory, setInventory] = useState<Inventory[]>([]);
+  const [inventory, setInventory] = useState<WarehouseInventoryItem[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
   const [openDialog, setOpenDialog] = useState(false);
   const [newWarehouse, setNewWarehouse] = useState({ 
@@ -111,17 +111,18 @@ const WarehouseManagement: React.FC = () => {
   };  const fetchInventory = async () => {
     try {
       setLoading(true);
-      const response = await inventoryService.getInventory({
-        companyId,
-        warehouseId: selectedWarehouse
-      });
-        // SECURITY FIX: Remove client-side filtering as backend now handles all security
-      // Backend already applies proper role-based filtering based on company type
-      const inventoryData = response || response || [];
+      
+      // Use the new warehouse inventory items method
+      const response = await inventoryService.getWarehouseInventoryItems(selectedWarehouse);
+      
+      // The response should be an array of WarehouseInventoryItem objects
+      const inventoryData = response || [];
       const inventoryList = Array.isArray(inventoryData) ? inventoryData : [];
       
       setInventory(inventoryList);
-      setError(null);    } catch (err) {
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching warehouse inventory:', err);
       setError('Failed to fetch inventory');
       setInventory([]); // Set empty array on error
     } finally {
@@ -185,14 +186,15 @@ const WarehouseManagement: React.FC = () => {
       // Map fields to backend contract
       const payload = {
         name: newWarehouse.name.trim(),
-        location: newWarehouse.address.trim(),
+        address: newWarehouse.address.trim(), // Use 'address' instead of 'location'
         company_id: companyId,
         contact_info: {
           name: newWarehouse.contactInfo.name.trim(),
           phone: newWarehouse.contactInfo.phone.trim(),
           email: newWarehouse.contactInfo.email.trim(),
         },
-        metadata: { capacity: Number(newWarehouse.capacity) },
+        capacity: Number(newWarehouse.capacity), // Use 'capacity' directly instead of in metadata
+        metadata: {}, // Keep metadata for additional data if needed
       };
       await warehouseService.createWarehouse(payload);
       await handleCloseDialog();
@@ -341,15 +343,15 @@ const WarehouseManagement: React.FC = () => {
                     {Array.isArray(inventory) && inventory.length > 0 ? (
                       inventory.map((item) => {
                         const warehouseName = warehouses.find(w => w.id === item.warehouse_id)?.name || item.warehouse_id;
-                        // Placeholder for product name
-                        const productName = `Product ${item.product_id}`;
+                        // Placeholder for product name - would need to fetch from product service
+                        const productName = `Inventory Item ${item.inventory_item_id}`;
                         return (
                           <TableRow key={item.id}>
                             <TableCell>{productName}</TableCell>
                             <TableCell align="right">{item.quantity}</TableCell>
                             <TableCell>{warehouseName}</TableCell>
                             <TableCell>
-                              {item.quantity <= (item.min_threshold || 0) ? 'Low Stock' : 'In Stock'}
+                              {item.quantity <= 10 ? 'Low Stock' : 'In Stock'}
                             </TableCell>
                             <TableCell align="right">
                               {canPerform('inventoryEdit') && (

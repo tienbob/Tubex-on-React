@@ -32,10 +32,8 @@ export const useAccessControl = (): UseAccessControlResult => {
           setLoading(false);
           return;
         }
-        console.log('Fetching company info for ID:', authUser.companyId);
         const companyResponse = await companyService.getCompanyById(authUser.companyId);
         const companyObj = companyResponse.company;
-        console.log('Company fetched:', companyObj);
 
         const fullUser: User = {
           userId: authUser.userId,
@@ -44,7 +42,6 @@ export const useAccessControl = (): UseAccessControlResult => {
           companyType: companyObj?.company_type
         };
 
-        console.log('Full user created:', fullUser);
         setUser(fullUser);
       } catch (error) {
         console.error('Error fetching company type for companyId', authUser.companyId, error);
@@ -120,11 +117,9 @@ export const useAccessControl = (): UseAccessControlResult => {
   }
     const canPerform = (action: string, context?: any): boolean => {
     if (!user) {
-      console.log('canPerform: No user found');
       return false;
     }
     
-    console.log('canPerform called with:', { action, user, permissions });
     
     switch (action) {// Product actions
       case 'product:create':

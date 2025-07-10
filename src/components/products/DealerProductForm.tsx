@@ -87,9 +87,7 @@ const DealerProductForm: React.FC<DealerProductFormProps> = ({
   const fetchSuppliers = async () => {
     setSuppliersLoading(true);
     try {
-      console.log('DealerProductForm - Fetching suppliers...');
       const response = await companyService.getCompanies({ company_type: 'supplier' });
-      console.log('DealerProductForm - Suppliers response:', response);
       setSuppliers(response || []);
     } catch (err: any) {
       console.error('DealerProductForm - Error fetching suppliers:', err);
@@ -109,7 +107,6 @@ const DealerProductForm: React.FC<DealerProductFormProps> = ({
     try {
       // Fetch products from the selected supplier using their company ID
       const products = await productService.getProducts({ supplier_id: selectedSupplierId, status: 'active', limit: 100 });
-      console.log('Supplier products response:', products);
       // Find the supplier object for the selectedSupplierId
       const supplierObj = suppliers.find(s => s.id === selectedSupplierId);
       const supplierInfo = supplierObj ? { id: supplierObj.id, name: supplierObj.name } : { id: selectedSupplierId, name: 'Supplier' };
@@ -129,9 +126,7 @@ const DealerProductForm: React.FC<DealerProductFormProps> = ({
 
   const fetchWarehouses = async () => {
     try {
-      console.log('DealerProductForm - Fetching warehouses for company:', companyId);
       const warehouses = await warehouseService.getWarehouses({ company_id: companyId });
-      console.log('DealerProductForm - Warehouses response:', warehouses);
       setWarehouses(warehouses || []);
     } catch (err: any) {
       console.error('DealerProductForm - Error fetching warehouses:', err);
@@ -224,9 +219,6 @@ const DealerProductForm: React.FC<DealerProductFormProps> = ({
         selectedProducts.has(product.id)
       );
 
-      console.log('DealerProductForm - Adding products to dealer catalog:', productsToAdd);
-      console.log('DealerProductForm - Selected supplier ID:', selectedSupplierId);
-
       // Create products first
       const currentTime = Date.now();
       const productPromises = productsToAdd.map((product, index) => 
@@ -257,7 +249,6 @@ const DealerProductForm: React.FC<DealerProductFormProps> = ({
               inventoryService.createInventory({
                 product_id: createdProduct.id,
                 company_id: companyId,
-                warehouse_id: inventory.warehouseId,
                 quantity: inventory.quantity,
                 unit: originalProduct.unit,
                 min_threshold: 0,

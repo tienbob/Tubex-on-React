@@ -75,13 +75,11 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (authLoading) {
-      console.log('Dashboard: Auth is loading, companyId not yet set from context.');
       // Optionally, you could clear companyId here if strict reset is needed during auth loading
       // setCompanyId(''); 
       return;
     }    // Auth process is complete
     if (user?.companyId) {
-      console.log('Dashboard: Setting companyId from user:', user.companyId, 'Type:', typeof user.companyId);
       setCompanyId(String(user.companyId)); // Ensure it's always a string
     } else {
       setCompanyId(''); // Clear local companyId if not available from context
@@ -93,7 +91,6 @@ const Dashboard: React.FC = () => {
   // Main data fetching logic based on active tab and companyId availability
   useEffect(() => {
     if (authLoading) {
-      console.log('Dashboard: Auth is loading, deferring data fetch for tab', value);
       if (value === 0) setLoading(true); else setActiveTabLoading(true); // Show loading indicators
       return;
     }
@@ -103,7 +100,6 @@ const Dashboard: React.FC = () => {
       // Auth is loaded. Proceed with fetching.      // Clear previous errors for the current scope (overview or active tab)
       if (value === 0) setError(null); else setActiveTabError(null);
 
-      console.log(`Dashboard: Fetching data for tab ${value}, companyId: "${companyId}", auth loading: ${authLoading}`);
 
       switch (value) {
         case 0: // Overview
@@ -117,10 +113,8 @@ const Dashboard: React.FC = () => {
           break;
         case 2: // Products
           if (companyId && String(companyId).trim() !== '') {
-            console.log('Dashboard: Starting product fetch for companyId:', companyId);
             fetchProducts();
           } else {
-            console.log('Dashboard: Company ID not available for Products tab (Tab 2). CompanyId:', companyId, 'Type:', typeof companyId);
             setProducts([]);
             setActiveTabError('Company ID is not available. Cannot load products.');
             setActiveTabLoading(false);
@@ -131,11 +125,9 @@ const Dashboard: React.FC = () => {
           break;        
         case 4: // Inventory Tab
           if (companyId && String(companyId).trim() !== '') {
-            console.log('Dashboard: Starting inventory fetch for companyId:', companyId);
             fetchInventory(); // This function explicitly uses companyId
           } else {
             // companyId is not available, and auth is complete.
-            console.log('Dashboard: Company ID not available for Inventory tab (Tab 4). CompanyId:', companyId, 'Type:', typeof companyId, 'Auth loading:', authLoading);
             setInventory([]); // Clear data
             setActiveTabError('Company ID is not available. Cannot load inventory.');
             setActiveTabLoading(false); // Ensure loading is false
@@ -196,7 +188,6 @@ const Dashboard: React.FC = () => {
     setActiveTabError(null);
     
     try {
-      console.log('Dashboard: Fetching products for tab display, companyId:', companyId);
       const response = await productService.getProducts({ 
         limit: 10 // Increased limit to make sure we get all products
       });
@@ -204,20 +195,14 @@ const Dashboard: React.FC = () => {
       // Handle the response format from productService
       const productsData = response || [];
       
-      console.log('Dashboard: Products data loaded:', productsData);
-      console.log('Dashboard: Products data length:', productsData.length);
-      console.log('Dashboard: Products data type:', typeof productsData);
-      console.log('Dashboard: Is array?', Array.isArray(productsData));
       
       if (productsData.length === 0) {
-        console.log('Dashboard: No products returned from API. Checking if this is expected...');
       }
       
       setProducts(productsData);
       
       // Verify the state was updated correctly
       setTimeout(() => {
-        console.log('Dashboard: Products state after update:', products.length);
       }, 0);
     } catch (err: any) {
       console.error('Dashboard: Error fetching products:', err);
@@ -263,7 +248,6 @@ const Dashboard: React.FC = () => {
     }
 
     try {
-      console.log(`Dashboard - fetchInventory: Starting fetch (attempt ${retryCount + 1}/${maxRetries + 1}) with companyId:`, companyId);
       
       // Always pass companyId explicitly to avoid getCurrentCompanyId() issues
       const response = await inventoryService.getInventory({ 
@@ -271,22 +255,13 @@ const Dashboard: React.FC = () => {
         limit: 5 
       });
       
-      console.log('Dashboard - fetchInventory: Raw response:', response);
-      console.log('Dashboard - fetchInventory: Response type:', typeof response);
-      console.log('Dashboard - fetchInventory: Response keys:', Object.keys(response || {}));
-      
+
       const inventoryData = response || response || [];
-      console.log('Dashboard - fetchInventory: Extracted inventory data:', inventoryData);
-      console.log('Dashboard - fetchInventory: Inventory data type:', typeof inventoryData);
-      console.log('Dashboard - fetchInventory: Is array?', Array.isArray(inventoryData));
-      console.log('Dashboard - fetchInventory: Array length:', inventoryData?.length);
-      console.log('Dashboard - inventory sample item:', inventoryData[0]); // Debug first item structure
-      
+
       if (!Array.isArray(inventoryData)) {
         console.warn('Dashboard - fetchInventory: Expected array but got:', typeof inventoryData, inventoryData);
         
         if (retryCount < maxRetries) {
-          console.log(`Dashboard - fetchInventory: Retrying in 1 second (attempt ${retryCount + 1}/${maxRetries})`);
           setTimeout(() => fetchInventory(retryCount + 1), 1000);
           return;
         }
@@ -295,13 +270,10 @@ const Dashboard: React.FC = () => {
         return;
       }
       
-      console.log('Dashboard - fetchInventory: About to set inventory state with:', inventoryData);
       setInventory(inventoryData);
-      console.log('Dashboard - fetchInventory: Successfully set inventory data, count:', inventoryData.length);
       
       // Additional verification - check state after setting
       setTimeout(() => {
-        console.log('Dashboard - fetchInventory: State verification - current inventory state length:', inventory.length);
       }, 100);
       
     } catch (err: any) {
@@ -320,7 +292,6 @@ const Dashboard: React.FC = () => {
         err.status >= 500 ||
         err.status === 429 // Rate limit
       )) {
-        console.log(`Dashboard - fetchInventory: Retrying due to ${err.message} (attempt ${retryCount + 1}/${maxRetries})`);
         setTimeout(() => fetchInventory(retryCount + 1), 1000 * (retryCount + 1)); // Exponential backoff
         return;
       }
@@ -328,38 +299,31 @@ const Dashboard: React.FC = () => {
       setActiveTabError(err.message || 'Failed to load inventory');
     } finally {
       setActiveTabLoading(false);
-      console.log('Dashboard - fetchInventory: Finished, loading set to false');
     }
   };
 
   useEffect(() => {
-    console.log('Dashboard: Current local companyId state updated:', companyId);
   }, [companyId]); // Debug log for local companyId state changes
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    console.log(`Dashboard: Tab changed from ${value} to ${newValue}`);
-    console.log('Dashboard: Available tabs:', availableTabs);
-    console.log('Dashboard: Selected tab:', availableTabs[newValue]);
+
     
     setValue(newValue);
     
     // Force data refresh when changing to the Products tab
     const tabId = availableTabs[newValue]?.id;
     if (tabId === 2) { // Products tab
-      console.log('Dashboard: Forcing products refresh on tab change');
       setTimeout(() => fetchProducts(), 100);
     }
   };
   // Handle navigation with query params instead of routes
   const handleNavigation = (path: string) => {
-    console.log('Dashboard handleNavigation called with path:', path);
     
     // Extract the base path and segments
     const segments = path.split('/').filter(Boolean);
     const basePath = segments[0]; // e.g., 'inventory', 'products', 'orders'
     
-    console.log('Parsed segments:', segments);
-    console.log('Base path:', basePath);
+
     
     if (segments.length === 1) {
       // Just the base path, navigate to main section
@@ -578,7 +542,6 @@ const Dashboard: React.FC = () => {
                 </Box>
               ) : (
                 <>
-                  {console.log('Dashboard - Render Products Tab: products length =', products.length)}
                   {products && products.length > 0 ? (
                     <Paper sx={{ width: '100%', overflow: 'auto', borderRadius: 2, boxShadow: 0 }}>
                       <Box sx={{ p: 2 }}>
@@ -798,10 +761,6 @@ const Dashboard: React.FC = () => {
                   <CircularProgress />
                 </Box>              ) : (
                 <>
-                  {console.log('Dashboard - Render: Inventory state for rendering:', inventory)}
-                  {console.log('Dashboard - Render: Inventory length:', inventory.length)}
-                  {console.log('Dashboard - Render: Inventory type:', typeof inventory)}
-                  {console.log('Dashboard - Render: Is array?', Array.isArray(inventory))}
                   {inventory.length > 0 ? (
                     <Paper sx={{ width: '100%', overflow: 'auto', borderRadius: 2, boxShadow: 0 }}>
                       <Box sx={{ p: 2 }}>

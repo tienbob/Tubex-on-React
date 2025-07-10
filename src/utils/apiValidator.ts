@@ -12,22 +12,18 @@ import { API_BASE_URL } from '../config/api.config';
  */
 export const validateApiConnection = async (): Promise<boolean> => {
   try {
-    console.log('Validating API connection to:', API_BASE_URL);
     
     // First try the base URL to check if the API is running
     const rootResponse = await axios.get(`${API_BASE_URL.split('/api/v1')[0]}/`);
-    console.log('API root endpoint response:', rootResponse.status, rootResponse.data);
     
     // If root is accessible, check the auth endpoint paths
     try {
       const authPathResponse = await axios.get(`${API_BASE_URL}/auth`);
-      console.log('Auth API endpoint check:', authPathResponse.status);
       return true;
     } catch (authError: any) {
       // 404 is expected if we hit a valid API but wrong endpoint
       // This is actually a good sign as it means the API is running
       if (authError.response && authError.response.status === 404) {
-        console.log('Auth API endpoint not found, but API is running');
         return true;
       }
       

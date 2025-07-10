@@ -85,7 +85,6 @@ export const companyService = {
       throw new ApiError('Invalid company ID provided', 400);
     }
     try {
-      console.log('Fetching company by ID:', id);
       const response = await get<{ status: string, data: Company }>(`/companies/${id}`);
       return { company: response.data.data }; // Wrap in expected format
     } catch (error) {

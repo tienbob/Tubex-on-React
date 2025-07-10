@@ -80,7 +80,6 @@ const SmartCategoryInput: React.FC<SmartCategoryInputProps> = ({
     }
   };
   const handleCategoryChange = (event: any, newValue: ProductCategory | string | null) => {
-    console.log('SmartCategoryInput handleCategoryChange:', { newValue, type: typeof newValue });
     
     if (typeof newValue === 'string') {
       // User typed a new category name
@@ -105,7 +104,6 @@ const SmartCategoryInput: React.FC<SmartCategoryInputProps> = ({
   };
 
   const handleInputChange = (event: any, newInputValue: string) => {
-    console.log('SmartCategoryInput handleInputChange:', { newInputValue });
     setInputValue(newInputValue);
     
     // Check if the input matches any existing category

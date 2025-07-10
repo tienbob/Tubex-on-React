@@ -327,8 +327,6 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
       
       const response = await authService.registerCompany(registrationData);
       
-      console.log('Registration successful, response:', response);
-      
       if (response.data) {
         // Call success callback if provided
         if (onRegisterSuccess) {

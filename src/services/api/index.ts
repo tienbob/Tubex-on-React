@@ -21,3 +21,6 @@ export { dashboardService } from './dashboardService';
 
 // Add additional service exports here as needed
 export { companyService } from './companyService';
+export { productCategoryService } from './productCategoryService';
+export { warehouseInventoryService } from './warehouseInventoryService';
+export * from './shared-types';

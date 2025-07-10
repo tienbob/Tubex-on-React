@@ -55,7 +55,6 @@ const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }
   useEffect(() => {
     // Check if we have a code from the URL
     if (codeFromUrl) {
-      console.log("Invitation code found in URL:", codeFromUrl);
       setInvitationCode(codeFromUrl);
       validateCode();
     }
@@ -69,16 +68,13 @@ const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }
     setVerifying(true);
     setError(null);
       try {
-      console.log('Validating invitation code:', invitationCode);
       const response = await authService.validateInvitationCode(invitationCode);
-      console.log('Validation response:', response);
       
       if (response.valid) {
         setCompanyName(response.companyName || null);
         setCompanyId(response.companyId || null);
         setCodeValid(true);
         setActiveStep(1);
-        console.log('Code validated successfully. Company ID:', response.companyId);
       } else {
         setError('Invalid or expired invitation code. Please contact your administrator.');
         console.error('Invalid invitation code response:', response);      }
@@ -153,15 +149,12 @@ const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }
         invitationCode
       });
       
-      console.log('Registration response:', response);
       
       if (response.data.requiresVerification) {
         // Redirect to a pending approval page
-        console.log('Account requires verification, redirecting to pending approval');
         navigate('/auth/pending-approval', { state: { email } });
       } else {
         // Direct login successful
-        console.log('Registration successful, redirecting to dashboard');
         if (onRegisterSuccess) {
           onRegisterSuccess(response.data);
         }

@@ -187,11 +187,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
     return <div>Loading...</div>;
   }
 
-  // Add debug logging to help diagnose the issue
-  console.log('ProductForm - Current user:', user);
-  console.log('ProductForm - Company type:', user?.companyType);
-  console.log('ProductForm - User role:', user?.role);
-  console.log('ProductForm - Company ID:', companyId);
 
   // We're now handling the supplier form only with the correct supplier-specific logic
   // This fixes the issue where suppliers couldn't create products properly
@@ -228,8 +223,6 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
   
   // Check if the current user is a supplier
   const isSupplier = user?.companyType === 'supplier';
-  console.log('SupplierProductForm - User is a supplier:', isSupplier);
-  console.log('SupplierProductForm - User company ID:', user?.companyId);
   
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -308,13 +301,10 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
   }, [productId, companyId]);
     const fetchCategories = async () => {
     try {
-      console.log('SupplierProductForm - Fetching categories...');
       const response = await productCategoryService.getCategories();
-      console.log('SupplierProductForm - Categories API response:', response);
       
       const categoriesList = response.data || [];
-      console.log('SupplierProductForm - Categories list:', categoriesList);
-      console.log('SupplierProductForm - Categories list length:', categoriesList.length);
+
       
       setCategories(categoriesList);
     } catch (err: any) {
@@ -326,11 +316,9 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
     try {
       // If the user is a supplier, just get their own company info
       if (isSupplier && user?.companyId) {
-        console.log('SupplierProductForm - User is a supplier, fetching only their company data');
         const companyResponse = await companyService.getCompanyById(user.companyId);
         if (companyResponse && companyResponse.company) {
           const company = companyResponse.company;
-          console.log('SupplierProductForm - Company fetched:', company);
           
           // Set suppliers list with just the current user's company
           const suppliersList = [{
@@ -345,18 +333,14 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
             type: supplier.company_type as 'supplier'
           }));
           
-          console.log('SupplierProductForm - Setting supplier to current company:', filteredSuppliers);
           setSuppliers(filteredSuppliers);
         }
       } else {
         // For other user types (dealers, admins), fetch all suppliers
-        console.log('SupplierProductForm - Fetching suppliers using getSuppliers method...');
         const response = await companyService.getSuppliers();
-        console.log('SupplierProductForm - Suppliers API response:', response);
         
         const suppliersList = response || [];
-        console.log('SupplierProductForm - Suppliers list:', suppliersList);
-        console.log('SupplierProductForm - Suppliers list length:', suppliersList.length);
+
         
         const filteredSuppliers = suppliersList
           .map(supplier => ({
@@ -365,8 +349,7 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
             type: supplier.company_type as 'supplier'
           }));
           
-        console.log('SupplierProductForm - Filtered suppliers:', filteredSuppliers);
-        console.log('SupplierProductForm - Filtered suppliers length:', filteredSuppliers.length);
+
         
         setSuppliers(filteredSuppliers);
       }
@@ -624,7 +607,7 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
       const supplier_id = isSupplier && user?.companyId 
         ? user.companyId 
         : (formData.supplierId || '');
-        
+
       const productData: ProductApiInput = {
         name: formData.name,
         description: formData.description,
@@ -653,30 +636,34 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
         onSave(savedProduct);
       }
       const product_id = (savedProduct && savedProduct.id) ? savedProduct.id : productId;
-      if (formData.inventory.warehouses.length > 0) {
-        try {
-          for (const warehouseInventory of formData.inventory.warehouses) {
-            if (!warehouseInventory || typeof warehouseInventory !== 'object') continue;
-            if (warehouseInventory.warehouseId && warehouseInventory.quantity) {
-              const inventoryData = {
-                product_id: product_id as string,
-                warehouse_id: warehouseInventory.warehouseId,
-                quantity: parseFloat(warehouseInventory.quantity),
-                unit: 'piece',
-                min_threshold: warehouseInventory.minThreshold ? parseFloat(warehouseInventory.minThreshold) : undefined,
-                max_threshold: warehouseInventory.maxThreshold ? parseFloat(warehouseInventory.maxThreshold) : undefined,
-                reorder_point: warehouseInventory.reorderPoint ? parseFloat(warehouseInventory.reorderPoint) : undefined,
-                reorder_quantity: warehouseInventory.reorderQuantity ? parseFloat(warehouseInventory.reorderQuantity) : undefined,
-              };
-              if (warehouseInventory.id) {
-                await inventoryService.updateInventory(warehouseInventory.id, inventoryData);
-              } else {
-                await inventoryService.createInventory({ ...inventoryData, company_id: companyId });
-              }
-            }
+
+      // --- JOIN TABLE LOGIC FOR INVENTORY/Warehouse ---
+      // 1. Create or update the inventory record (one per product/company)
+      let inventoryRecord = null;
+      // Try to find existing inventory for this product/company
+      const allInventories = await inventoryService.getInventory({ product_id: product_id, company_id: companyId });
+      if (allInventories && allInventories.length > 0) {
+        inventoryRecord = allInventories[0];
+      } else {
+        // Create inventory if not found
+        inventoryRecord = await inventoryService.createInventory({
+          product_id: product_id || '',
+          company_id: companyId,
+          quantity: 0, // Will be distributed to warehouses
+          unit: 'piece',
+        });
+      }
+      // 2. For each warehouse assignment, create or update the join table
+      if (formData.inventory.warehouses.length > 0 && inventoryRecord && inventoryRecord.id) {
+        for (const warehouseInventory of formData.inventory.warehouses) {
+          if (!warehouseInventory || typeof warehouseInventory !== 'object') continue;
+          if (warehouseInventory.warehouseId && warehouseInventory.quantity) {
+            await inventoryService.addInventoryToWarehouse(
+              inventoryRecord.id,
+              warehouseInventory.warehouseId,
+              parseFloat(warehouseInventory.quantity)
+            );
           }
-        } catch (inventoryError) {
-          console.warn('%c[TUBEX-INVENTORY] Inventory update/create failed:', 'color: #fff; background: #d32f2f; font-weight: bold; padding:2px 6px; border-radius:3px;', inventoryError);
         }
       }
     } catch (err: any) {
@@ -1045,7 +1032,12 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
                   {formData.inventory.warehouses.map((warehouseInventory, index) => (
                     <Box key={index} sx={{ border: '1px solid #ddd', borderRadius: 1, p: 2, mb: 2 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="subtitle2">Warehouse {index + 1}</Typography>
+                        <Typography variant="subtitle2">
+                          {(() => {
+                            const warehouse = warehouses.find(w => w.id === warehouseInventory.warehouseId);
+                            return warehouse ? warehouse.name : `Warehouse ${index + 1}`;
+                          })()}
+                        </Typography>
                         <IconButton 
                           onClick={() => removeWarehouseInventory(index)}
                           color="error"
@@ -1060,7 +1052,7 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
                         <FormControl fullWidth required error={!!errors[`warehouse_warehouseId_${index}`]}>
                           <InputLabel>Warehouse</InputLabel>
                           <Select
-                            value={warehouseInventory.warehouseId}
+                            value={warehouseInventory.warehouseId || ''}
                             onChange={(e) => updateWarehouseInventory(index, 'warehouseId', e.target.value)}
                             disabled={loading}
                             label="Warehouse"

@@ -15,7 +15,6 @@ const getTokenFromStorage = (key: string): string | null => {
       if (tokenData.token && tokenData.expiration) {
         // Check if token has expired based on our custom expiration
         if (Date.now() > tokenData.expiration) {
-          console.log(`Token expired (custom expiration), removing from storage`);
           localStorage.removeItem(key);
           return null;
         }
@@ -34,7 +33,6 @@ const getTokenFromStorage = (key: string): string | null => {
 };
 
 // Debug the API URL
-console.log("API Base URL:", API_BASE_URL);
 
 // Create an Axios instance with default config
 const apiClient: AxiosInstance = axios.create({
@@ -53,12 +51,6 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     // Log the full URL to help with debugging
-    const fullUrl = `${config.baseURL}${config.url}`;
-    console.log(`API Request: ${config.method?.toUpperCase()} ${fullUrl}`, { 
-      headers: config.headers,
-      params: config.params,
-      data: config.data
-    });
     return config;
   },
   (error) => {
@@ -70,7 +62,6 @@ apiClient.interceptors.request.use(
 // Response interceptor for API calls
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(`API Response [${response.status}]:`, response.data);
     return response;
   },  async (error) => {
     console.error('API Response Error:', error.response || error.message);
@@ -104,10 +95,6 @@ apiClient.interceptors.response.use(
           refreshToken = refreshTokenData;
         }
         
-        console.log('Token refresh attempt with originalRequest:', {
-          url: originalRequest.url,
-          method: originalRequest.method
-        });
         
         // Use a fresh axios instance for token refresh to avoid interceptors
         const response = await axios({
@@ -120,7 +107,6 @@ apiClient.interceptors.response.use(
                          response.data?.accessToken;
                         
         if (newToken) {
-          console.log('Token refresh successful, got new token');
           
           // Get existing token data to preserve rememberMe setting
           const existingTokenData = localStorage.getItem('access_token');
@@ -282,7 +268,6 @@ export const getWithCompany = async <T>(url: string, options?: AxiosRequestConfi
 // Add request logging
 const logRequest = (method: string, url: string, config?: AxiosRequestConfig) => {
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`API ${method.toUpperCase()} Request:`, url, config);
   }
 };
 
@@ -291,7 +276,6 @@ export const get = <T>(url: string, config?: AxiosRequestConfig): Promise<AxiosR
   logRequest('GET', url, config);
   return apiClient.get<T>(url, config)
     .then(response => {
-      console.log(`GET ${url} success:`, response.data);
       return response;
     })
     .catch(error => {
@@ -308,7 +292,6 @@ export const post = <T>(url: string, data?: any, config?: AxiosRequestConfig): P
   logRequest('POST', url, config);
   return apiClient.post<T>(url, data, config)
     .then(response => {
-      console.log(`POST ${url} success:`, response.data);
       return response;
     })
     .catch(error => {

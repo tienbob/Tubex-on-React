@@ -215,14 +215,11 @@ const SideNavigation: React.FC = () => {
   // Debug output for permission logging
   useEffect(() => {
     const filteredItems = getFilteredNavigationItems();
-    console.log('SideNavigation - Filtered navigation items:', filteredItems);
     
     // Specifically check Account section
     const accountItem = navigationItems.find(item => item.id === 'account');
     if (accountItem && accountItem.children) {
-      console.log('SideNavigation - Account section children:');
       accountItem.children.forEach(child => {
-        console.log(`Child: ${child.label}, Path: ${child.path}, Access: ${canAccess(child.path)}`);
       });
     }
   }, [canAccess]);

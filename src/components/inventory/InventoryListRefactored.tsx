@@ -46,7 +46,6 @@ interface Inventory {
   quantity: number;
   unit: string;
   warehouse_name: string;
-  warehouse_id: string;
   batch_number?: string;
   threshold?: number;
   warehouse_capacity?: number;
@@ -229,10 +228,22 @@ const InventoryList: React.FC<InventoryListProps> = ({
       }
       const response = await inventoryService.getInventory(params);
       const mappedData = (response || []).map(item => {
+        console.log('Processing inventory item:', item);
+        console.log('Warehouse inventory items:', item.warehouse_inventory_items);
+        
+        // Get warehouse names from warehouse_inventory_items
+        const warehouseNames = item.warehouse_inventory_items?.map((wi: any) => {
+          console.log('Processing warehouse item:', wi);
+          console.log('Warehouse data:', wi.warehouse);
+          return wi.warehouse?.name || 'Unknown';
+        }).join(', ') || 'No warehouse assigned';
+        
+        console.log('Final warehouse names:', warehouseNames);
+        
         const inventoryItem: Inventory = {
           ...item,
-          product_name: item.product_id, // You may want to join with productService for names
-          warehouse_name: item.warehouse_id, // You may want to join with warehouseService for names
+          product_name: (item as any).product?.name || item.product_id, // Use product name if available
+          warehouse_name: warehouseNames, // Show all assigned warehouses
         };
         return inventoryItem;
       });

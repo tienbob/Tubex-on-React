@@ -161,7 +161,6 @@ const getTokenFromStorage = (key: string): string | null => {
       if (tokenData.token && tokenData.expiration) {
         // Check if token has expired based on our custom expiration
         if (Date.now() > tokenData.expiration) {
-          console.log(`Token expired (custom expiration), removing from storage`);
           localStorage.removeItem(key);
           return null;
         }
@@ -189,11 +188,6 @@ const isTokenValid = (token: string | null): boolean => {
     if (!decoded.exp) return false;
     // exp is in seconds, Date.now() in ms
     const isValid = decoded.exp * 1000 > Date.now();
-    console.log('Token expiry check:', { 
-      exp: new Date(decoded.exp * 1000).toISOString(),
-      now: new Date().toISOString(),
-      isValid
-    });
     return isValid;
   } catch (e) {
     console.error('Failed to decode token:', e);
@@ -210,7 +204,6 @@ const validateTokenWithBackend = async (token: string): Promise<boolean> => {
     const response = await get('/auth/me', { 
       headers: { Authorization: `Bearer ${token}` }
     });
-    console.log('Backend token validation success:', response.data);
     return true;
   } catch (e) {
     console.error('Backend token validation failed:', e);
@@ -238,13 +231,6 @@ export const authService = {
       // Extract data from response
       const responseData = response.data?.data || response.data;
       
-      console.log('Login response debug:', {
-        fullResponse: response.data,
-        responseData,
-        userId: responseData?.userId,
-        companyId: responseData?.companyId,
-        accessToken: responseData?.accessToken ? 'present' : 'missing'
-      });
       
       if (responseData?.accessToken) {
         // Calculate token expiration based on remember me option
@@ -269,7 +255,6 @@ export const authService = {
         localStorage.setItem('refresh_token', JSON.stringify(refreshTokenData));
         
         // Create a normalized user object
-        console.log('Login response data:', responseData);
         const userInfo: UserInfo = {
           userId: responseData.userId,
           companyId: responseData.companyId,
@@ -279,7 +264,6 @@ export const authService = {
           firstName: responseData.firstName || '',
           lastName: responseData.lastName || ''
         };
-        console.log('Normalized user info:', userInfo);
         
         // Store user info with expiration
         const userInfoData = {
@@ -290,7 +274,6 @@ export const authService = {
         
         localStorage.setItem('user_info', JSON.stringify(userInfoData));
         
-        console.log(`Tokens stored with ${credentials.rememberMe ? '7 day' : '1 day'} expiration`);
       } else {
         throw new Error('Authentication failed: No access token in response');
       }
@@ -400,13 +383,7 @@ export const authService = {
       if (!data.company.name || data.company.name.trim() === '') {
         throw new Error('Company name is required');
       }      
-      console.log('Sending registration request with data:', {
-        email: data.email,
-        // Don't log password
-        company: data.company,
-        firstName: data.firstName,
-        lastName: data.lastName
-      });
+
 
       const response = await post<AuthResponse>('/auth/register', {
         email: data.email,
@@ -417,7 +394,6 @@ export const authService = {
         userRole: 'admin'
       });
       
-      console.log('Registration response received:', response.data);
       
       // Store tokens if provided (might be pending verification)
       if (response.data?.data?.accessToken) {
@@ -686,7 +662,6 @@ export const authService = {
       
       // Check our custom expiration first (for Remember Me functionality)
       if (parsed.expiration && Date.now() > parsed.expiration) {
-        console.log('Token expired (custom expiration), user session ended');
         authService.logout();
         return false;
       }
@@ -696,17 +671,10 @@ export const authService = {
       
       // Check JWT expiration
       const isJwtValid = isTokenValid(token);
-      console.log('Authentication check:', { 
-        hasToken: !!token, 
-        isJwtValid,
-        customExpirationValid: !parsed.expiration || Date.now() <= parsed.expiration,
-        rememberMe: parsed.rememberMe || false
-      });
       
       // If JWT is expired but we're within our custom expiration window (Remember Me),
       // we should attempt to refresh the token
       if (!isJwtValid && parsed.expiration && Date.now() <= parsed.expiration) {
-        console.log('JWT expired but within Remember Me window, token refresh needed');
         // Return true for now, let the refresh happen in the background
         return true;
       }
@@ -722,7 +690,6 @@ export const authService = {
       // If parsing fails, treat as old format
       const token = tokenData;
       const isValid = isTokenValid(token);
-      console.log('Authentication check (old format):', { hasToken: !!token, isValid });
       
       if (!isValid) {
         authService.logout();
@@ -736,13 +703,11 @@ export const authService = {
   validateToken: async (): Promise<boolean> => {
     const token = getTokenFromStorage('access_token');
     if (!token) {
-      console.log('No token to validate');
       return false;
     }
     
     // First check locally
     if (!isTokenValid(token)) {
-      console.log('Token is expired (local check)');
       authService.logout();
       return false;
     }
@@ -777,7 +742,6 @@ export const authService = {
       
       // Check if user info has expiration and if it's expired
       if (parsed.expiration && Date.now() > parsed.expiration) {
-        console.log('User info expired, removing from storage');
         localStorage.removeItem('user_info');
         return null;
       }
@@ -971,9 +935,7 @@ export const authService = {
         throw new Error('Invitation code is required');
       }
       
-      console.log('Frontend: Validating invitation code with backend:', code);
       const response = await get<{status: string; data: {id: string; name: string; type: string; business_category: string}}>(`/auth/invitation-code/${code}`);
-      console.log('Frontend: Backend response:', response);
       
       // Transform the backend response to match expected format
       if (response.data && response.data.status === 'success') {
@@ -983,7 +945,6 @@ export const authService = {
           companyId: response.data.data.id,
           expiresAt: undefined // Backend doesn't provide expiry info in this endpoint
         };
-        console.log('Frontend: Transformed response:', result);
         return result;
       } else {
         console.log('Frontend: Invalid response format:', response.data);
@@ -1071,14 +1032,12 @@ export const authService = {
           return true;
         }
         
-        console.log('Token expires soon, attempting refresh...');
         
         // Attempt to refresh the token
         const refreshToken = parsedRefreshToken.token || refreshTokenData;
         const response = await authService.refreshToken({ refreshToken });
         
         if (response.data?.accessToken) {
-          console.log('Token refresh successful');
           return true;
         }
       } catch (e) {
@@ -1089,7 +1048,6 @@ export const authService = {
       return false;
     } catch (e) {
       // Handle old format tokens
-      console.log('Token in old format, treating as valid');
       return isTokenValid(tokenData);
     }
   },
@@ -1136,6 +1094,5 @@ export const authService = {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_info');
-    console.log('All authentication data cleared');
   },
 };

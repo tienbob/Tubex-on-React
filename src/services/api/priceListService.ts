@@ -63,17 +63,10 @@ export interface PriceListFilters {
  */
 export const createPriceList = async (priceListData: PriceList): Promise<PriceList> => {
   try {
-    console.log('createPriceList: Making API call', { 
-      priceListData,
-      url: `/price-lists`
-    });
+
     
     const response = await post<PriceList>(`/price-lists`, priceListData);
-    
-    console.log('createPriceList: API call successful', { 
-      createdId: response.data?.id,
-      response: response.data
-    });
+  
     
     return response.data;
   } catch (error) {
@@ -97,10 +90,6 @@ export const createPriceList = async (priceListData: PriceList): Promise<PriceLi
  */
 export const getPriceLists = async (filters?: PriceListFilters): Promise<PriceList[]> => {
   try {
-    console.log('getPriceLists: Making API call', { 
-      filters,
-      url: `/price-lists`
-    });
     
     const response = await get<PriceList[]>(`/price-lists`, { 
       params: { 
@@ -108,10 +97,6 @@ export const getPriceLists = async (filters?: PriceListFilters): Promise<PriceLi
       } 
     });
     
-    console.log('getPriceLists: API call successful', { 
-      resultCount: response.data?.length || 0,
-      response: response.data
-    });
     
     return response.data;
   } catch (error) {
@@ -135,10 +120,7 @@ export const getPriceLists = async (filters?: PriceListFilters): Promise<PriceLi
  */
 export const getPriceListById = async (priceListId: string): Promise<PriceList> => {
   try {
-    console.log('getPriceListById: Making API call', { 
-      priceListId, 
-      url: `/price-lists/${priceListId}`
-    });
+
     
     const response = await get<PriceList>(`/price-lists/${priceListId}`);
     return response.data;
@@ -161,10 +143,7 @@ export const getPriceListById = async (priceListId: string): Promise<PriceList> 
  */
 export const updatePriceList = async (priceListId: string, priceListData: Partial<PriceList>): Promise<PriceList> => {
   try {
-    console.log('updatePriceList: Making API call', { 
-      priceListId, 
-      url: `/price-lists/${priceListId}`
-    });
+
     
     const response = await put<PriceList>(`/price-lists/${priceListId}`, priceListData);
     return response.data;
@@ -187,10 +166,7 @@ export const updatePriceList = async (priceListId: string, priceListData: Partia
  */
 export const deletePriceList = async (priceListId: string): Promise<{ success: boolean; message: string }> => {
   try {
-    console.log('deletePriceList: Making API call', { 
-      priceListId, 
-      url: `/price-lists/${priceListId}`
-    });
+
     
     const response = await del<{ success: boolean; message: string }>(`/price-lists/${priceListId}`);
     return response.data;

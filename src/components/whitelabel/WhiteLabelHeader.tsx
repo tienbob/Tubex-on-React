@@ -56,11 +56,6 @@ const WhiteLabelHeader: React.FC<WhiteLabelHeaderProps> = ({
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
     // Debug - log auth state in header
   useEffect(() => {
-    console.log("WhiteLabelHeader - Auth state:", { 
-      isAuthenticated,
-      user,
-      loading
-    });
   }, [isAuthenticated, user, loading]);
   
   // Determine if user is logged in, accounting for loading state

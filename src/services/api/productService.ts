@@ -53,9 +53,7 @@ export interface UpdateProductInput {
 export const productService = {
   getProducts: async (params?: any): Promise<Product[]> => {
     try {
-      console.log('ProductService: Fetching products with params:', params);
       const response = await get<{ data: Product[] }>(`/products`, { params });
-      console.log('ProductService: Received response:', response);
       return response.data.data;
     } catch (err) {
       console.error('ProductService: Error fetching products:', err);

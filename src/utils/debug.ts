@@ -16,7 +16,6 @@ export const debug = {
    */
   log: (module: string, message: string, data?: any, force = false) => {
     if (DEBUG_ENABLED || force) {
-      console.log(`[${module}] ${message}`, data !== undefined ? data : '');
     }
   },
 
@@ -55,7 +54,6 @@ export const debug = {
    */
   api: (module: string, endpoint: string, response: any, force = false) => {
     if (DEBUG_ENABLED || force) {
-      console.log(`[${module}] API ${endpoint}:`, response);
     }
   }
 };

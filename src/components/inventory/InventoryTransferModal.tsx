@@ -18,6 +18,7 @@ import {
   SelectChangeEvent
 } from '@mui/material';
 import { inventoryService } from '../../services/api/inventoryService';
+import { warehouseInventoryService } from '../../services/api/warehouseInventoryService';
 import { warehouseService } from '../../services/api/warehouseService';
 
 interface InventoryTransferModalProps {
@@ -138,26 +139,14 @@ const InventoryTransferModal: React.FC<InventoryTransferModalProps> = ({
     setApiError(null);
     
     try {
-      // Fetch source and destination inventory
-      const [sourceInventory] = await inventoryService.getInventory({ company_id: companyId, warehouse_id: sourceWarehouseId, product_id: productId });
-      let destInventory = null;
-      try {
-        [destInventory] = await inventoryService.getInventory({ company_id: companyId, warehouse_id: destinationWarehouseId, product_id: productId });
-      } catch {}
-      // Update source inventory (subtract)
-      await inventoryService.updateInventory(sourceInventory.id, { quantity: sourceInventory.quantity - Number(quantity) });
-      // Update or create destination inventory (add)
-      if (destInventory) {
-        await inventoryService.updateInventory(destInventory.id, { quantity: destInventory.quantity + Number(quantity) });
-      } else {
-        await inventoryService.createInventory({
-          product_id: productId,
-          company_id: companyId,
-          warehouse_id: destinationWarehouseId,
-          quantity: Number(quantity),
-          unit: sourceInventory.unit
-        });
-      }
+      // Use the new warehouse inventory service for transfers
+      await warehouseInventoryService.moveInventoryBetweenWarehouses(
+        productId,
+        sourceWarehouseId,
+        destinationWarehouseId,
+        Number(quantity)
+      );
+      
       setSourceWarehouseId('');
       setDestinationWarehouseId('');
       setQuantity('');

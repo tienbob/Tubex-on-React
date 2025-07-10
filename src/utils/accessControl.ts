@@ -470,9 +470,7 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
 export const getUserPermissions = (user: User): AccessPermissions => {
   const companyType = user.companyType;
   const key = `${companyType}-${user.role}`;
-  console.log('key: ', key);
   const perms = ROLE_PERMISSIONS[key];
-  console.log('getUserPermissions - permissions found:', !!perms);
   if (perms) return perms;
   // Return a fully false permissions object if not found
   return {
